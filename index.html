@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Image Grabber — Google Images via Custom Search</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: #13171c;
+      --muted: #9aa4af;
+      --text: #e7edf3;
+      --accent: #4f8cff;
+      --accent-2: #60d394;
+      --danger: #ff6b6b;
+      --border: #222832;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 600px at 70% -20%, #18202a, #0b0d10) fixed;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 48px;
+    }
+
+    header {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1.4fr auto auto auto;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input[type="text"], input[type="search"], input[type="number"] {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      outline: none;
+      width: 100%;
+    }
+    input::placeholder { color: #7c8793; }
+
+    button {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #202733, #1a2030);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary {
+      background: linear-gradient(180deg, #3467ff, #284dcc);
+      border-color: #1b3fb3;
+    }
+    button.success {
+      background: linear-gradient(180deg, #3abf77, #29945b);
+      border-color: #237f4e;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .tips {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: -2px;
+    }
+
+    .gallery {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: #0f141b;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      transition: transform 0.08s ease, border-color 0.2s ease;
+    }
+    .card:hover { transform: translateY(-2px); border-color: #2a3340; }
+
+    .thumb {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+      background: #11161d;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta a { color: var(--muted); opacity: 0.9; }
+    .meta a:hover { color: var(--text); opacity: 1; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      background: #0e151d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 999;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+      pointer-events: auto;
+    }
+
+    .controls {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .muted { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin: 0 0 14px; font-weight: 700;">Image Grabber</h1>
+    <header>
+      <div class="row">
+        <label>
+          API key (Google Custom Search)
+          <input type="text" id="apiKey" placeholder="AIza... (keep this safe)" />
+        </label>
+        <label>
+          Search Engine ID (cx)
+          <input type="text" id="cx" placeholder="e.g. 0123456789abcdefg:abc_defghi" />
+        </label>
+        <div style="display:flex; align-items:end; gap:8px;">
+          <button id="saveBtn" class="success">Save</button>
+          <span class="muted" id="saveStatus"></span>
+        </div>
+      </div>
+      <div class="row-2">
+        <label>
+          Query
+          <input type="search" id="query" placeholder="cats, sunsets, macro, etc." />
+        </label>
+        <label>
+          Results
+          <input type="number" id="num" min="1" max="10" value="10" />
+        </label>
+        <button id="searchBtn" class="primary" style="align-self:end;">Search Images</button>
+        <div style="align-self:end;text-align:right;">
+          <span class="muted">Click a thumbnail to download via server.</span>
+        </div>
+      </div>
+      <div class="tips">
+        Your API key and cx are stored locally (browser <code>localStorage</code>) so you don't have to retype them.  
+        This page calls Google’s <strong>Custom Search JSON API</strong> with <code>searchType=image</code>.
+      </div>
+    </header>
+
+    <div class="controls">
+      <button id="prevBtn" disabled>◀ Prev</button>
+      <button id="nextBtn" disabled>Next ▶</button>
+      <span class="muted" id="pageInfo"></span>
+    </div>
+
+    <section id="results" class="gallery" aria-live="polite"></section>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // ---------------- State ----------------
+    const el = {
+      apiKey: document.getElementById('apiKey'),
+      cx: document.getElementById('cx'),
+      saveBtn: document.getElementById('saveBtn'),
+      saveStatus: document.getElementById('saveStatus'),
+      query: document.getElementById('query'),
+      num: document.getElementById('num'),
+      searchBtn: document.getElementById('searchBtn'),
+      results: document.getElementById('results'),
+      toast: document.getElementById('toast'),
+      prevBtn: document.getElementById('prevBtn'),
+      nextBtn: document.getElementById('nextBtn'),
+      pageInfo: document.getElementById('pageInfo'),
+    };
+
+    // persistent client-side storage
+    function loadConfig() {
+      el.apiKey.value = localStorage.getItem('googleApiKey') || '';
+      el.cx.value     = localStorage.getItem('googleCx') || '';
+    }
+    function saveConfig() {
+      localStorage.setItem('googleApiKey', el.apiKey.value.trim());
+      localStorage.setItem('googleCx', el.cx.value.trim());
+      el.saveStatus.textContent = 'Saved ✓';
+      setTimeout(() => (el.saveStatus.textContent = ''), 1500);
+    }
+
+    let currentStartIdx = 1; // Google Custom Search "start" param (1-based)
+    function clampNum() {
+      const v = parseInt(el.num.value, 10);
+      if (isNaN(v) || v < 1) el.num.value = 1;
+      if (v > 10) el.num.value = 10; // API max per page
+    }
+
+    // ---------------- UI helpers ----------------
+    function showToast(msg) {
+      el.toast.textContent = msg;
+      el.toast.classList.add('show');
+      setTimeout(() => el.toast.classList.remove('show'), 1800);
+    }
+
+    function renderResults(items, total) {
+      el.results.innerHTML = '';
+      if (!items || !items.length) {
+        el.results.innerHTML = '<div class="muted" style="padding:12px;">No results.</div>';
+        el.prevBtn.disabled = el.nextBtn.disabled = true;
+        el.pageInfo.textContent = '';
+        return;
+      }
+
+      for (const item of items) {
+        const full = item.link; // full image URL
+        const thumb = item.image?.thumbnailLink || item.link;
+        const site = new URL(item.image?.contextLink || item.link).hostname;
+
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.src = thumb;
+        img.alt = item.title || 'image result';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+
+        img.addEventListener('click', () => downloadViaServer(full));
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const cap = document.createElement('div');
+        cap.textContent = site;
+        const open = document.createElement('a');
+        open.href = full;
+        open.target = '_blank';
+        open.rel = 'noopener noreferrer';
+        open.textContent = 'open';
+        meta.appendChild(cap);
+        meta.appendChild(open);
+
+        card.appendChild(img);
+        card.appendChild(meta);
+        el.results.appendChild(card);
+      }
+
+      const perPage = Number(el.num.value);
+      const page = Math.ceil(currentStartIdx / perPage);
+      const totalPages = total ? Math.ceil(total / perPage) : '–';
+      el.pageInfo.textContent = `Page ${page} of ${totalPages}`;
+
+      el.prevBtn.disabled = currentStartIdx <= 1;
+      el.nextBtn.disabled = total && (currentStartIdx + perPage > Math.min(total, 100)); // API caps at 100 results
+    }
+
+    // ---------------- Networking ----------------
+    async function searchImages() {
+      clampNum();
+
+      const key = el.apiKey.value.trim();
+      const cx  = el.cx.value.trim();
+      const q   = el.query.value.trim();
+      const num = Number(el.num.value);
+
+      if (!key || !cx) {
+        showToast('Enter API key and cx first.');
+        return;
+      }
+      if (!q) {
+        showToast('Enter a search query.');
+        return;
+      }
+
+      el.searchBtn.disabled = true;
+      el.results.innerHTML = '<div class="muted" style="padding:12px;">Searching…</div>';
+
+      const params = new URLSearchParams({
+        key, cx, q,
+        searchType: 'image',
+        num: String(num),
+        start: String(currentStartIdx),
+        // Keep payload small: only what we need
+        fields: 'searchInformation/totalResults,items(link,title,image/thumbnailLink,image/contextLink)',
+      });
+
+      try {
+        const response = await fetch('https://www.googleapis.com/customsearch/v1?' + params.toString());
+        if (!response.ok) {
+          throw new Error('Google API error: ' + response.status);
+        }
+        const data = await response.json();
+        const total = Number(data?.searchInformation?.totalResults || 0);
+        renderResults(data.items || [], total);
+      } catch (err) {
+        console.error(err);
+        el.results.innerHTML = '<div class="muted" style="padding:12px;">Error while searching. See console.</div>';
+        showToast('Search failed.');
+      } finally {
+        el.searchBtn.disabled = false;
+      }
+    }
+
+    async function downloadViaServer(imageUrl) {
+      try {
+        const resp = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: imageUrl }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          throw new Error(data?.error || 'Download failed');
+        }
+        showToast('Saved: ' + data.savedAs);
+      } catch (err) {
+        console.error(err);
+        showToast('Download failed.');
+      }
+    }
+
+    // ---------------- Wiring ----------------
+    el.saveBtn.addEventListener('click', saveConfig);
+    el.searchBtn.addEventListener('click', () => {
+      currentStartIdx = 1;
+      searchImages();
+    });
+    el.prevBtn.addEventListener('click', () => {
+      const perPage = Number(el.num.value);
+      currentStartIdx = Math.max(1, currentStartIdx - perPage);
+      searchImages();
+    });
+    el.nextBtn.addEventListener('click', () => {
+      const perPage = Number(el.num.value);
+      currentStartIdx = currentStartIdx + perPage;
+      searchImages();
+    });
+
+    loadConfig();
+  </script>
+</body>
+</html>
